@@ -1,26 +1,37 @@
-version: "3"
+version: '3.8'
+
 services:
   mongo:
     image: mongo:7
     ports:
       - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
   gateway:
-    build: ./backend/gateway
+    build:
+      context: ./backend/gateway
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend/gateway:/app
     environment:
-      - MONGO_URL=${MONGO_URL}
+      - MONGO_URI=mongodb://mongo:27017
       - LLAMA_ENDPOINT=${LLAMA_ENDPOINT}
       - LLAMA_API_KEY=${LLAMA_API_KEY}
+      - THREADS_BASEURL=${THREADS_BASEURL}
+    depends_on:
+      - mongo
+
   nextjs:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
     environment:
-      - NEXT_PUBLIC_GATEWAY_URL=http://localhost:8000
-      - GATEWAY_URL=http://gateway:8000
-    command: npm run dev
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - gateway
+
+volumes:
+  mongo_data:

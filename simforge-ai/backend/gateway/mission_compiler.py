@@ -1,19 +1,33 @@
-from datetime import datetime
+import os
+import jinja2
 from pathlib import Path
-from jinja2 import Environment, FileSystemLoader
-from typing import Dict, Tuple
+from .models import MissionMeta
 
-TEMPLATE_DIR = Path(__file__).parent / "mission_templates"
-MISSION_DIR = Path.home() / "Library/Application Support/VelociDrone/tracks/custom"
-
-env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
-
-def write_mission(data: Dict) -> Tuple[str, str]:
-    name = f"{data.get('terrain','mission')}-{int(datetime.utcnow().timestamp())}"
-    safe_name = ''.join(c for c in name if c.isalnum() or c in '-_')
-    template = env.get_template('fpv_base.mission')
-    content = template.render(**data)
-    MISSION_DIR.mkdir(parents=True, exist_ok=True)
-    path = MISSION_DIR / f"{safe_name}.mission"
-    path.write_text(content)
-    return safe_name, str(path)
+def write_mission(mission_name: str, meta: MissionMeta) -> str:
+    """Generate a VelociDrone mission file from template and meta data."""
+    # Setup Jinja2 environment
+    template_dir = Path(__file__).parent / "mission_templates"
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(str(template_dir)),
+        autoescape=True
+    )
+    template = env.get_template("fpv_base.mission")
+    
+    # Render mission file
+    mission_content = template.render(
+        mission_name=mission_name,
+        terrain=meta.terrain,
+        threats=meta.threats,
+        wind_kts=meta.wind_kts,
+        laps=meta.laps
+    )
+    
+    # Ensure VelociDrone custom tracks directory exists
+    velodirone_dir = Path.home() / "Library/Application Support/VelociDrone/tracks/custom"
+    velodirone_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Write mission file
+    mission_path = velodirone_dir / f"{mission_name}.mission"
+    mission_path.write_text(mission_content)
+    
+    return str(mission_path)

@@ -1,0 +1,19 @@
+{
+  "threads": [
+    {
+      "id": 1,
+      "text": "Attack run on container yard. Approach from east, crosswind 10kts, 3 laps. Watch for SAM sites.",
+      "image_url": "https://example.com/container_yard.jpg"
+    },
+    {
+      "id": 2,
+      "text": "Urban canyon race. Start at city center, navigate through buildings, 5 laps. Wind 15kts from north.",
+      "image_url": null
+    },
+    {
+      "id": 3,
+      "text": "Mountain valley challenge. Follow river path, avoid radar installations, 4 laps. Wind 8kts variable.",
+      "image_url": "https://example.com/mountain_valley.jpg"
+    }
+  ]
+} 
