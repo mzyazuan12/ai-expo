@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<mission>
+  <terrain>{{ terrain }}</terrain>
+  <threats>
+  {% for t in threats %}
+    <threat>{{ t }}</threat>
+  {% endfor %}
+  </threats>
+  <wind>{{ wind_kts }}</wind>
+  <laps>{{ laps }}</laps>
+</mission>
