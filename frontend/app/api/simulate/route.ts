@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     
-    const response = await fetch('http://localhost:8001/forge', {
+    const response = await fetch('http://localhost:8001/simulate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -15,15 +15,15 @@ export async function POST(request: Request) {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to create mission');
+      throw new Error('Failed to start simulation');
     }
 
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error in forge API route:', error);
+    console.error('Error in simulate API route:', error);
     return NextResponse.json(
-      { error: 'Failed to create mission' },
+      { error: 'Failed to start simulation' },
       { status: 500 }
     );
   }

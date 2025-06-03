@@ -55,23 +55,42 @@ export async function getMissions(): Promise<Mission[]> {
 
 // Mock API function to create a mission
 export async function createMission(data: CreateMissionData): Promise<Mission> {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 1200));
-  
-  // Generate a new mission
-  const newMission: Mission = {
-    id: `mission-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-    name: generateMissionName(),
-    tactics: data.tactics,
-    imageUrl: data.imageUrl,
-    createdAt: new Date().toISOString(),
-    bestLapTime: Math.random() > 0.3 ? undefined : 35 + Math.random() * 60,
-  };
-  
-  // Add to mock data
-  MOCK_MISSIONS.unshift(newMission);
-  
-  return newMission;
+  try {
+    const response = await fetch('/api/forge', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        thread_text: data.tactics
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create mission');
+    }
+
+    const result = await response.json();
+    
+    // Generate a new mission with the API response
+    const newMission: Mission = {
+      id: `mission-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+      name: generateMissionName(),
+      tactics: data.tactics,
+      imageUrl: data.imageUrl,
+      createdAt: new Date().toISOString(),
+      bestLapTime: Math.random() > 0.3 ? undefined : 35 + Math.random() * 60,
+      missionData: result.response // Add the mission data from the API
+    };
+    
+    // Add to mock data
+    MOCK_MISSIONS.unshift(newMission);
+    
+    return newMission;
+  } catch (error) {
+    console.error('Error creating mission:', error);
+    throw error;
+  }
 }
 
 // Mock API function to get a single mission

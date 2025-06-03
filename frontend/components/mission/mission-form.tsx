@@ -26,8 +26,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const formSchema = z.object({
+export const formSchema = z.object({
   tactics: z
     .string()
     .min(10, { message: "Tactics must be at least 10 characters." })
@@ -37,6 +38,11 @@ const formSchema = z.object({
     .url({ message: "Please enter a valid URL." })
     .optional()
     .or(z.literal("")),
+  tags: z.string().optional(),
+  trl: z.coerce.number().min(1).max(9),
+  urgency: z.enum(["low", "medium", "high"]),
+  domain: z.string(),
+  environment: z.enum(["oil_rig", "stadium", "construction_arena", "neon_island", "red_canyon", "airport", "flight_school", "micro_drone_edition", "japan_pack"]).default("stadium"),
 });
 
 interface MissionFormProps {
@@ -52,6 +58,11 @@ export function MissionForm({ onSubmit, isLoading }: MissionFormProps) {
     defaultValues: {
       tactics: "",
       imageUrl: "",
+      tags: "",
+      trl: 1,
+      urgency: "low",
+      domain: "general",
+      environment: "stadium",
     },
   });
 
@@ -133,6 +144,115 @@ export function MissionForm({ onSubmit, isLoading }: MissionFormProps) {
                 Add Course Image
               </Button>
             )}
+
+            <FormField
+              control={form.control}
+              name="tags"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tags (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter tags separated by commas" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Add tags to categorize your mission.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="environment"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Environment</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select environment" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="oil_rig">Oil Rig</SelectItem>
+                      <SelectItem value="stadium">Stadium</SelectItem>
+                      <SelectItem value="construction_arena">Construction Arena</SelectItem>
+                      <SelectItem value="neon_island">Neon Island (DLC)</SelectItem>
+                      <SelectItem value="red_canyon">Red Canyon (DLC)</SelectItem>
+                      <SelectItem value="airport">Airport (DLC)</SelectItem>
+                      <SelectItem value="flight_school">Flight School (DLC)</SelectItem>
+                      <SelectItem value="micro_drone_edition">Micro Drone Edition (DLC)</SelectItem>
+                      <SelectItem value="japan_pack">Japan Pack (DLC)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Select the simulation environment.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="trl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>TRL (Technology Readiness Level)</FormLabel>
+                  <FormControl>
+                    <Input type="number" min="1" max="9" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Select the technology readiness level (1-9).
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="urgency"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Urgency</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select urgency" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Select the urgency level of the mission.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="domain"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Domain</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter domain" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Specify the domain of the mission.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </CardContent>
           <CardFooter className="flex justify-between">
             <Button

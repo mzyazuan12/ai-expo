@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { ChevronDown, ChevronUp, Clock, Map } from "lucide-react";
+import { ChevronDown, ChevronUp, Clock, Map, ThumbsUp, Play, Pause, Loader2 } from "lucide-react";
 import { Mission } from "@/lib/types";
 import {
   Card,
@@ -15,14 +15,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 interface MissionCardProps {
   mission: Mission;
+  onUpvote: (id: string) => Promise<void>;
 }
 
-export function MissionCard({ mission }: MissionCardProps) {
+export function MissionCard({ mission, onUpvote }: MissionCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const [isLaunching, setIsLaunching] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [isUpvoting, setIsUpvoting] = useState(false);
   const { toast } = useToast();
   
   const formatLapTime = (time: number): string => {
@@ -35,37 +38,58 @@ export function MissionCard({ mission }: MissionCardProps) {
       .padStart(2, "0")}.${milliseconds.toString().padStart(3, "0")}`;
   };
 
-  const handleLaunchSimulation = async () => {
-    setIsLaunching(true);
+  const handleSimulate = async () => {
+    setIsSimulating(true);
     try {
-      const response = await fetch('/api/forge', {
-        method: 'POST',
+      const response = await fetch(`/api/simulate/${mission._id}`, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          thread_text: mission.tactics,
-          image_url: mission.imageUrl,
-        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to launch simulation');
+        throw new Error("Failed to start simulation");
       }
 
-      toast({
-        title: "Simulation Launched",
-        description: "The simulator is starting up...",
-      });
+      const data = await response.json();
+      if (data.status === "success") {
+        toast({
+          title: "Simulation Started",
+          description: "SkyDive is launching with your mission.",
+        });
+      } else {
+        throw new Error(data.message || "Failed to start simulation");
+      }
     } catch (error) {
-      console.error('Error launching simulation:', error);
+      console.error("Simulation error:", error);
       toast({
-        title: "Launch Failed",
-        description: "Could not start the simulation. Please try again.",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to start simulation. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsLaunching(false);
+      setIsSimulating(false);
+    }
+  };
+
+  const handleUpvote = async () => {
+    setIsUpvoting(true);
+    try {
+      await onUpvote(mission.id);
+      toast({
+        title: "Upvoted",
+        description: "Your upvote has been recorded.",
+      });
+    } catch (error) {
+      console.error("Upvote error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upvote. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpvoting(false);
     }
   };
 
@@ -79,18 +103,29 @@ export function MissionCard({ mission }: MissionCardProps) {
       <CardHeader className="pb-2 cursor-pointer" onClick={() => setExpanded(!expanded)}>
         <div className="flex justify-between items-start">
           <div className="space-y-1">
-            <CardTitle className="text-base font-medium">{mission.name}</CardTitle>
+            <CardTitle className="text-base font-medium">{mission.mission_name || "Untitled Mission"}</CardTitle>
             <CardDescription>
-              Created {format(new Date(mission.createdAt), "MMM d, yyyy")}
+              Created {mission.created ? format(new Date(mission.created), "MMM d, yyyy") : "Unknown date"}
             </CardDescription>
           </div>
-          <Button variant="ghost" size="sm" className="p-0 h-8 w-8">
-            {expanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="flex items-center gap-1">
+              <ThumbsUp className="h-3 w-3" />
+              {mission.upvotes || 0}
+            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleUpvote}
+              disabled={isUpvoting}
+            >
+              {isUpvoting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ThumbsUp className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <div
@@ -103,11 +138,11 @@ export function MissionCard({ mission }: MissionCardProps) {
           <CardContent className="pt-2">
             <div className="text-sm space-y-3">
               <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
-                {mission.bestLapTime ? (
+                {mission.scores && mission.scores.length > 0 ? (
                   <div className="flex items-center">
                     <Clock className="h-4 w-4 mr-1" />
                     <span className="font-medium">Best Lap Time:</span>{" "}
-                    <span className="ml-1">{formatLapTime(mission.bestLapTime)}</span>
+                    <span className="ml-1">{formatLapTime(Math.min(...mission.scores.map(s => s.lap_time_sec)))}</span>
                   </div>
                 ) : (
                   <div className="text-muted-foreground flex items-center">
@@ -118,41 +153,53 @@ export function MissionCard({ mission }: MissionCardProps) {
               </div>
               
               <p className="text-muted-foreground">
-                {mission.tactics.length > 150
-                  ? mission.tactics.slice(0, 150) + "..."
-                  : mission.tactics}
+                {mission.meta?.terrain || "Unknown terrain"} - {mission.meta?.threats?.join(", ") || "No threats"}
               </p>
-              
-              {mission.imageUrl && (
-                <div className="mt-4 rounded-md overflow-hidden border">
-                  <img
-                    src={mission.imageUrl}
-                    alt={`Course for ${mission.name}`}
-                    className="w-full h-auto object-cover"
-                  />
-                </div>
-              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {mission.meta?.tags?.map((tag, index) => (
+                <Badge key={index} variant="secondary">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium">TRL</p>
+                <p className="text-sm text-gray-500">{mission.meta?.trl || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Urgency</p>
+                <p className="text-sm text-gray-500">{mission.meta?.urgency || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Domain</p>
+                <p className="text-sm text-gray-500">{mission.meta?.domain || "N/A"}</p>
+              </div>
             </div>
           </CardContent>
           <CardFooter className="flex justify-between pt-0">
-            <div className="flex items-center text-xs text-muted-foreground">
+            <div className="flex items-center text-xs text-muted-foreground gap-3">
               <Map className="h-3 w-3 mr-1" />
-              <span>Course #{mission.id.slice(-4)}</span>
+              <span>Course #{mission.mission_name?.slice(-4) || "0000"}</span>
             </div>
             <Button
               variant="outline"
               size="sm"
               className="text-xs h-8"
-              onClick={handleLaunchSimulation}
-              disabled={isLaunching}
+              onClick={handleSimulate}
+              disabled={isSimulating}
             >
-              {isLaunching ? (
+              {isSimulating ? (
                 <>
-                  <div className="h-3 w-3 mr-1 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
-                  Launching...
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  Starting...
                 </>
               ) : (
-                "Run Simulation"
+                <>
+                  <Play className="h-3 w-3 mr-1" />
+                  Simulate
+                </>
               )}
             </Button>
           </CardFooter>

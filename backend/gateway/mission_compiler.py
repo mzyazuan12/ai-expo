@@ -13,37 +13,37 @@ env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
 
 STEAM_APP_ID = "1278060"  # FPV SkyDive Free Steam App ID
 
-def write_mission(meta: Dict) -> Tuple[str, Path]:
-    mission_name = f"Test Mission {datetime.now().strftime('%Y%m%d_%H%M%S')}"
+def write_mission(output_path: str, meta: Dict) -> None:
+    # Read the template
+    with open(TEMPLATE_DIR / "fpv_base_skydive.json", "r") as f:
+        template = f.read()
     
-    # Create a simple zigzag pattern with 5 gates
+    # Extract mission name from the output_path for the template
+    mission_name_from_path = Path(output_path).stem.split(".skydive")[-2]
+    
+    # Create gates
     gates = [
-        {"position": [0, 0, 10], "yaw": 0},
-        {"position": [20, 0, 15], "yaw": 45},
-        {"position": [40, 0, 20], "yaw": 90},
-        {"position": [60, 0, 15], "yaw": 135},
-        {"position": [80, 0, 10], "yaw": 180}
+        {"type": "gate", "x": 0, "y": 0, "z": 10, "yaw": 0},
+        {"type": "gate", "x": 20, "y": 0, "z": 15, "yaw": 45},
+        {"type": "gate", "x": 40, "y": 0, "z": 20, "yaw": 90},
+        {"type": "gate", "x": 60, "y": 0, "z": 15, "yaw": 135},
+        {"type": "gate", "x": 80, "y": 0, "z": 10, "yaw": 180}
     ]
     
-    # Ensure the SkyDive tracks directory exists
-    os.makedirs(SKYDIVE_TRACK_DIR, exist_ok=True)
+    # Format gates as JSON
+    gates_json = json.dumps([{
+        "id": i + 1,
+        "type": gate["type"],
+        "pos": [gate["x"], gate["y"], gate["z"]],
+        "rot": [0, gate["yaw"], 0]
+    } for i, gate in enumerate(gates)])
     
-    # Create mission data
-    mission_data = {
-        "name": mission_name,
-        "gates": gates,
-        "laps": meta.get("laps", 3),
-        "terrain": meta.get("terrain", "city")
-    }
+    # Replace placeholders
+    content = template.replace("MISSION_NAME", mission_name_from_path)
+    content = content.replace("TERRAIN", meta.get("terrain", "city"))
+    content = content.replace("3", str(meta.get("laps", 3)))
+    content = content.replace("[]", gates_json)
     
-    # Save the mission file
-    mission_file = SKYDIVE_TRACK_DIR / f"{mission_name}.json"
-    with open(mission_file, "w") as f:
-        json.dump(mission_data, f, indent=2)
-    
-    print(f"Mission saved to {mission_file}")
-    
-    # Launch FPV SkyDive
-    subprocess.Popen(["open", "/Applications/FPV Skydive.app", "--args", "-start"])
-    
-    return mission_name, mission_file
+    # Write the file
+    with open(output_path, "w") as f:
+        f.write(content)

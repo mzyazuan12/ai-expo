@@ -1,10 +1,23 @@
 services:
   mongo:
-    image: mongo:7
+    image: mongo:6.0
+    platform: linux/arm64/v8
+    restart: always
     ports:
       - "27018:27017"
     volumes:
       - mongodb_data:/data/db
+
+  llama:
+    image: ollama/ollama:latest
+    platform: linux/arm64/v8
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      OLLAMA_HOST: 0.0.0.0
 
   gateway:
     build: ./backend/gateway
@@ -14,10 +27,12 @@ services:
       - ./backend/gateway:/app
     environment:
       - MONGO_URL=mongodb://mongo:27017
-      - LLAMA_ENDPOINT=${LLAMA_ENDPOINT:-http://localhost:11434}
-      - LLAMA_API_KEY=${LLAMA_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - LLAMA_ENDPOINT=http://llama:11434/api/chat
+      - LLAMA_MODEL=llama3:8b
     depends_on:
       - mongo
+      - llama
 
   nextjs:
     build: ./frontend
@@ -34,3 +49,4 @@ services:
 
 volumes:
   mongodb_data:
+  ollama-data:

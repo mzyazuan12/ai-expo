@@ -1,11 +1,22 @@
 export interface Mission {
-  id: string;
-  name: string;
-  tactics: string;
-  imageUrl?: string;
-  createdAt: string;
-  bestLapTime?: number; // Time in seconds
-  simulations?: Simulation[];
+  _id: string;
+  mission_name: string;
+  meta: {
+    terrain: string;
+    threats: string[];
+    wind_kts: number;
+    laps: number;
+    tags: string[];
+    trl: number;
+    urgency: string;
+    domain: string;
+  };
+  created: string;
+  scores: Array<{
+    pilot: string;
+    lap_time_sec: number;
+  }>;
+  upvotes: number;
 }
 
 export interface Simulation {
@@ -19,6 +30,6 @@ export interface Simulation {
 }
 
 export interface CreateMissionData {
-  tactics: string;
-  imageUrl?: string;
+  thread_text: string;
+  image_url?: string;
 }
