@@ -1,9 +1,11 @@
-version: "3"
 services:
   mongo:
     image: mongo:7
     ports:
-      - "27017:27017"
+      - "27018:27017"
+    volumes:
+      - mongodb_data:/data/db
+
   gateway:
     build: ./backend/gateway
     ports:
@@ -11,16 +13,24 @@ services:
     volumes:
       - ./backend/gateway:/app
     environment:
-      - MONGO_URL=${MONGO_URL}
-      - LLAMA_ENDPOINT=${LLAMA_ENDPOINT}
-      - LLAMA_API_KEY=${LLAMA_API_KEY}
+      - MONGO_URL=mongodb://mongo:27017
+      - LLAMA_ENDPOINT=${LLAMA_ENDPOINT:-http://localhost:11434}
+      - LLAMA_API_KEY=${LLAMA_API_KEY:-}
+    depends_on:
+      - mongo
+
   nextjs:
     build: ./frontend
     ports:
-      - "3000:3000"
+      - "3002:3000"
     volumes:
       - ./frontend:/app
+      - /app/node_modules
     environment:
       - NEXT_PUBLIC_GATEWAY_URL=http://localhost:8000
       - GATEWAY_URL=http://gateway:8000
-    command: npm run dev
+    depends_on:
+      - gateway
+
+volumes:
+  mongodb_data:

@@ -1,0 +1,12 @@
+{
+  "name": "{{ mission_name }}",
+  "environment": "{{ terrain }}",
+  "laps": {{ laps }},
+  "gates": [
+  {%- for gate in gates -%}
+    { "id": {{ loop.index }}, "type": "{{ gate.type }}",
+      "pos": [{{ gate.x }}, {{ gate.y }}, {{ gate.z }}],
+      "rot": [0, {{ gate.yaw }}, 0] }{{ "," if not loop.last else "" }}
+  {%- endfor -%}
+  ]
+} 
