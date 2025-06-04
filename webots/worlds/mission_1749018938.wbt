@@ -1,64 +1,65 @@
-#VRML_SIM R2023b utf8
-# --  GLOBALS --------------------------------------------------
+#VRML_SIM R2025a utf8
+
 EXTERNPROTO "../protos/Stadium.proto"
 EXTERNPROTO "../protos/Crazyflie.proto"
 EXTERNPROTO "../protos/Supervisor.proto"
 
-WorldInfo { title "mission_1749018938" }
-
+WorldInfo {
+  title "mission_1749018938"
+}
 Viewpoint {
-  description "StartCam"
-  # Y-up coordinates: x y z
-  position    0 12 -22        # 12 m high, 22 m behind field centre
-  orientation 0 1 0 3.14      # rotate 180° to look toward +Z
   fieldOfView 0.7
+  orientation -0.790013220610286 0.08589157424043828 0.6070434488036771 3.009786225683329
+  position 28.97208928570002 132.73329583041567 -845.456869797814
+  description "StartCam"
 }
-
 Background {
-  skyColor [1 1 1]
+  skyColor [
+    1 1 1
+  ]
 }
-
 Stadium {
 }
-
-# ------------  SUPERVISOR  ------------
 DEF MissionSupervisor Supervisor {
-  controller  "mission_supervisor"
-  controllerArgs "MISSION_ID=683fe93a2f4f7fa4a9515a50"
+  controller "mission_supervisor"
+  controllerArgs [
+    "MISSION_ID=683fe93a2f4f7fa4a9515a50"
+  ]
 }
-
-# ------------  DRONE  ------------------
 DEF CF1 Crazyflie {
   translation 0 0.05 0
-  rotation    0 1 0 0
   controller "crazyflie_controller"
 }
-
-# ------------  GATES  ------------------
-
 DEF Gate_1 Solid {
   translation 0 1 5
-  rotation 0 1 0 0.0
+  rotation 0 1 0 0
   children [
     Shape {
       appearance Appearance {
-        material Material { diffuseColor 1 0 0 }
+        material Material {
+          diffuseColor 1 0 0
+        }
       }
-      geometry Box { size 1 1 0.1 }   # basic panel
+      geometry Box {
+        size 1 1 0.1
+      }
     }
   ]
   name "Gate_1"
 }
-
 DEF Gate_2 Solid {
   translation 0 1 10
-  rotation 0 1 0 0.0
+  rotation 0 1 0 0
   children [
     Shape {
       appearance Appearance {
-        material Material { diffuseColor 1 0 0 }
+        material Material {
+          diffuseColor 1 0 0
+        }
       }
-      geometry Box { size 1 1 0.1 }   # basic panel
+      geometry Box {
+        size 1 1 0.1
+      }
     }
   ]
   name "Gate_2"

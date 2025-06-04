@@ -3,8 +3,8 @@ from datetime import datetime
 from fastapi import FastAPI, Request, HTTPException, Depends, status
 import httpx
 import motor.motor_asyncio
-from models import ForgePayload, TelemetryPayload, Challenge
-from mission_compiler import write_wbt
+from .models import ForgePayload, TelemetryPayload, Challenge
+from .mission_compiler import write_wbt
 import socketio
 import subprocess
 import platform
