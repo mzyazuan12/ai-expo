@@ -7,12 +7,12 @@ export async function POST(request: Request) {
     const body = await request.json();
     
     const response = await fetch('http://localhost:8001/forge', {
-      method: 'POST',
+    method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
-    });
+  });
 
     if (!response.ok) {
       throw new Error('Failed to create mission');
@@ -26,5 +26,5 @@ export async function POST(request: Request) {
       { error: 'Failed to create mission' },
       { status: 500 }
     );
-  }
+}
 } 

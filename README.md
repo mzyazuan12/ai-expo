@@ -1,16 +1,25 @@
 # SimForge AI
 
-## Quick Start
-1. `cp .env.example .env` and fill your LLAMA endpoint and key.
-2. Ensure FPV Skydive is installed and 'Open using Rosetta' is checked in Finder > Get Info.
-3. Run `docker compose up --build`.
-4. Visit [http://localhost:3000/dashboard](http://localhost:3000/dashboard).
-5. Paste the sample text below and click **Forge**:
+## Quick Start with Webots
 
-```
-Attack run on container yard. Approach from east, crosswind 10kts, 3 laps.
-```
+1. Install requirements:
+   ```bash
+   pip install -r backend/gateway/requirements.txt
+   ```
+2. Start the backend:
+   ```bash
+   MISSION_ID=test python -m backend.gateway.main &
+   ```
+3. Forge a mission:
+   ```bash
+   curl -X POST http://localhost:8000/forge \
+      -H "Content-Type: application/json" \
+      -d '{"thread_text":"Test mission","environment":"stadium"}'
+   ```
+4. Simulate:
+   ```bash
+   curl -X POST http://localhost:8000/simulate/<mission_id>
+   ```
+   Replace `<mission_id>` with the ID returned from the forge step.
 
-## Troubleshooting
-- If FPV Skydive fails to launch, verify the application path in `gateway/main.py` and that it is set to run under Rosetta.
-- For OpenGL errors, toggle the Rosetta option off and on again in the app's Get Info pane.
+If successful, Webots should launch, gates should be visible, and telemetry should POST to `/telemetry`.

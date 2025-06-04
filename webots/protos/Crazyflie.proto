@@ -1,0 +1,67 @@
+#VRML_SIM R2025a utf8
+# Crazyflie quadcopter PROTO
+
+EXTERNPROTO "Motor.proto"
+
+PROTO Crazyflie [
+  field SFVec3f translation 0 0 0.05
+  field SFRotation rotation 0 1 0 0
+  field SFString controller ""
+  field MFString controllerArgs []
+]
+{
+  Robot {
+    translation IS translation
+    rotation IS rotation
+    controller IS controller
+    controllerArgs IS controllerArgs
+    device [
+      Motor { name "m1_motor" }
+      Motor { name "m2_motor" }
+      Motor { name "m3_motor" }
+      Motor { name "m4_motor" }
+    ]
+    children [
+      Solid {
+        translation 0 0 0
+        rotation 0 1 0 0
+        children [
+          DEF CrazyflieBoard Shape {
+            appearance PBRAppearance {
+              baseColor 0.1 0.1 0.1
+              metalness 0
+              roughness 0.5
+              textureImage "textures/crazyflie_board_albedo.jpg"
+              normalMap "textures/crazyflie_board_normal.jpg"
+              occlusionMap "textures/crazyflie_board_ao.jpg"
+            }
+            geometry Box { size 0.065 0.065 0.01 }
+          }
+          # Center of mass
+          # Transform {
+          #   translation 0 0 -0.02 # Adjusted downwards slightly for better balance
+          #   children [
+          #     Shape {
+          #       appearance Appearance { material Material { diffuseColor 0 1 0 } }
+          #       geometry Sphere { radius 0.005 }
+          #     }
+          #   ]
+          # }
+        ]
+        physics Physics {
+          density -1
+          mass 0.027  # Mass of Crazyflie 2.0 with battery and simple deck
+          centerOfMass [
+            0 0 -0.005 # Adjusted downwards
+          ]
+          inertiaMatrix [
+            0.0000165717 0 0
+            0 0.0000166102 0
+            0 0 0.0000292616
+          ]
+        }
+      }
+      # Propellers will be added by the controller
+    ]
+  }
+}

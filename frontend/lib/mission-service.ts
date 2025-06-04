@@ -44,16 +44,29 @@ const generateMissionName = (): string => {
   return `${randomAdjective} ${randomNoun}`;
 };
 
-// Mock API function to get missions
+// API function to get missions
 export async function getMissions(): Promise<Mission[]> {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  
-  // Return a copy of the mock data
-  return [...MOCK_MISSIONS];
+  try {
+    const response = await fetch('/api/missions', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch missions: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching missions:', error);
+    throw error;
+  }
 }
 
-// Mock API function to create a mission
+// API function to create a mission
 export async function createMission(data: CreateMissionData): Promise<Mission> {
   try {
     const response = await fetch('/api/forge', {
@@ -62,41 +75,89 @@ export async function createMission(data: CreateMissionData): Promise<Mission> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        thread_text: data.tactics
+        thread_text: data.tactics,
+        meta: {
+          terrain: data.environment,
+          threats: [],
+          wind_kts: 0,
+          laps: 1,
+          tags: data.tags ? data.tags.split(',').map(tag => tag.trim()) : [],
+          trl: data.trl,
+          urgency: data.urgency,
+          domain: data.domain,
+          gates: []
+        }
       }),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to create mission');
+      throw new Error(`Failed to create mission: ${response.statusText}`);
     }
 
     const result = await response.json();
-    
-    // Generate a new mission with the API response
-    const newMission: Mission = {
-      id: `mission-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-      name: generateMissionName(),
-      tactics: data.tactics,
-      imageUrl: data.imageUrl,
-      createdAt: new Date().toISOString(),
-      bestLapTime: Math.random() > 0.3 ? undefined : 35 + Math.random() * 60,
-      missionData: result.response // Add the mission data from the API
-    };
-    
-    // Add to mock data
-    MOCK_MISSIONS.unshift(newMission);
-    
-    return newMission;
+    return result;
   } catch (error) {
     console.error('Error creating mission:', error);
     throw error;
   }
 }
 
-// Mock API function to get a single mission
-export async function getMission(id: string): Promise<Mission | undefined> {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  
-  return MOCK_MISSIONS.find((mission) => mission.id === id);
+// API function to get a single mission
+export async function getMission(id: string): Promise<Mission> {
+  try {
+    const response = await fetch(`/api/missions/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch mission: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching mission:', error);
+    throw error;
+  }
+}
+
+// API function to upvote a mission
+export async function upvoteMission(id: string): Promise<void> {
+  try {
+    const response = await fetch(`/api/missions/${id}/upvote`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to upvote mission: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('Error upvoting mission:', error);
+    throw error;
+  }
+}
+
+// API function to start simulation
+export async function startSimulation(id: string): Promise<void> {
+  try {
+    const response = await fetch(`/api/simulate/${id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to start simulation: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('Error starting simulation:', error);
+    throw error;
+  }
 }

@@ -33,3 +33,17 @@ export interface CreateMissionData {
   thread_text: string;
   image_url?: string;
 }
+
+export interface Challenge {
+  _id: string;
+  title: string;
+  body_md: string;
+  tags: string[];
+  trl: number;
+  urgency: string;
+  domain: string;
+  state: string;
+  redactions: string[];
+  author_uid: string;
+  created: string;
+}

@@ -1,0 +1,43 @@
+#VRML_SIM R2025a utf8
+# --  GLOBALS --------------------------------------------------
+EXTERNPROTO "../protos/Stadium.proto"
+EXTERNPROTO "../protos/Crazyflie.proto"
+EXTERNPROTO "../protos/Supervisor.proto"
+
+WorldInfo { title "{{ world_name }}" }
+
+Viewpoint  { orientation 1 0 0 -1.2  position 0 3 15 }
+DirectionalLight { direction -0.3 -1 -0.2 }
+Background { skyColor [1 1 1] }
+
+Stadium {
+}
+
+# ------------  SUPERVISOR  ------------
+DEF MissionSupervisor Supervisor {
+  controller  "mission_supervisor"
+  controllerArgs "MISSION_ID={{ mission_id }}"
+}
+
+# ------------  DRONE  ------------------
+DEF CF1 Crazyflie {
+  translation 0 0 0
+  rotation    0 1 0 0
+  controller "crazyflie_controller"
+}
+
+# ------------  GATES  ------------------
+{% for gate in gates %}
+Transform {
+  translation {{ gate.x }} {{ gate.y }} {{ gate.z }}
+  rotation 0 1 0 {{ gate.yaw }}
+  children [
+    Shape {
+      appearance Appearance { material Material { diffuseColor 1 0 0 } }
+      geometry   Box { size 0.5 0.5 0.05 }
+    }
+  ]
+  name "Gate_{{ loop.index }}"
+  DEF Gate_{{ loop.index }}
+}
+{% endfor %}

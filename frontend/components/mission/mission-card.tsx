@@ -4,6 +4,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Clock, Map, ThumbsUp, Play, Pause, Loader2 } from "lucide-react";
 import { Mission } from "@/lib/types";
+import { useLeaderboard } from "@/hooks/useLeaderboard";
 import {
   Card,
   CardContent,
@@ -16,17 +17,20 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { Leaderboard } from "@/components/mission/leaderboard";
+import { startSimulation, upvoteMission } from "@/lib/mission-service";
 
 interface MissionCardProps {
   mission: Mission;
-  onUpvote: (id: string) => Promise<void>;
 }
 
-export function MissionCard({ mission, onUpvote }: MissionCardProps) {
+export function MissionCard({ mission }: MissionCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
   const [isUpvoting, setIsUpvoting] = useState(false);
   const { toast } = useToast();
+  
+  const { leaderboard, isLoading: isLoadingLeaderboard, error: leaderboardError } = useLeaderboard(mission._id);
   
   const formatLapTime = (time: number): string => {
     const minutes = Math.floor(time / 60);
@@ -41,26 +45,11 @@ export function MissionCard({ mission, onUpvote }: MissionCardProps) {
   const handleSimulate = async () => {
     setIsSimulating(true);
     try {
-      const response = await fetch(`/api/simulate/${mission._id}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      await startSimulation(mission._id);
+      toast({
+        title: "Simulation Started",
+        description: "SkyDive is launching with your mission.",
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to start simulation");
-      }
-
-      const data = await response.json();
-      if (data.status === "success") {
-        toast({
-          title: "Simulation Started",
-          description: "SkyDive is launching with your mission.",
-        });
-      } else {
-        throw new Error(data.message || "Failed to start simulation");
-      }
     } catch (error) {
       console.error("Simulation error:", error);
       toast({
@@ -76,7 +65,7 @@ export function MissionCard({ mission, onUpvote }: MissionCardProps) {
   const handleUpvote = async () => {
     setIsUpvoting(true);
     try {
-      await onUpvote(mission.id);
+      await upvoteMission(mission._id);
       toast({
         title: "Upvoted",
         description: "Your upvote has been recorded.",
@@ -116,13 +105,42 @@ export function MissionCard({ mission, onUpvote }: MissionCardProps) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleUpvote}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUpvote();
+              }}
               disabled={isUpvoting}
             >
               {isUpvoting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <ThumbsUp className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSimulate();
+              }}
+              disabled={isSimulating}
+            >
+              {isSimulating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
               )}
             </Button>
           </div>
@@ -138,19 +156,29 @@ export function MissionCard({ mission, onUpvote }: MissionCardProps) {
           <CardContent className="pt-2">
             <div className="text-sm space-y-3">
               <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
-                {mission.scores && mission.scores.length > 0 ? (
-                  <div className="flex items-center">
                     <Clock className="h-4 w-4 mr-1" />
-                    <span className="font-medium">Best Lap Time:</span>{" "}
-                    <span className="ml-1">{formatLapTime(Math.min(...mission.scores.map(s => s.lap_time_sec)))}</span>
-                  </div>
-                ) : (
-                  <div className="text-muted-foreground flex items-center">
-                    <Clock className="h-4 w-4 mr-1" />
-                    <span>No lap times recorded yet</span>
-                  </div>
-                )}
+                <span className="font-medium">Lap Times</span>
               </div>
+              {
+                isLoadingLeaderboard ? (
+                  <div className="flex items-center text-muted-foreground">
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Loading leaderboard...
+                  </div>
+                ) : leaderboardError ? (
+                  <div className="text-destructive">Failed to load leaderboard.</div>
+                ) : leaderboard.length === 0 ? (
+                  <div className="text-muted-foreground">No lap times recorded yet.</div>
+                ) : (
+                  <ul className="list-disc pl-5 space-y-1">
+                    {leaderboard.map((entry, index) => (
+                      <li key={index} className="text-gray-700 dark:text-gray-300">
+                        <span className="font-medium">{entry.pilot}:</span> {formatLapTime(entry.fastest_lap_time_sec)}
+                      </li>
+                    ))}
+                  </ul>
+                )
+              }
               
               <p className="text-muted-foreground">
                 {mission.meta?.terrain || "Unknown terrain"} - {mission.meta?.threats?.join(", ") || "No threats"}
@@ -175,7 +203,7 @@ export function MissionCard({ mission, onUpvote }: MissionCardProps) {
               <div>
                 <p className="text-sm font-medium">Domain</p>
                 <p className="text-sm text-gray-500">{mission.meta?.domain || "N/A"}</p>
-              </div>
+                </div>
             </div>
           </CardContent>
           <CardFooter className="flex justify-between pt-0">
@@ -183,28 +211,35 @@ export function MissionCard({ mission, onUpvote }: MissionCardProps) {
               <Map className="h-3 w-3 mr-1" />
               <span>Course #{mission.mission_name?.slice(-4) || "0000"}</span>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs h-8"
-              onClick={handleSimulate}
-              disabled={isSimulating}
-            >
-              {isSimulating ? (
-                <>
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  Starting...
-                </>
-              ) : (
-                <>
-                  <Play className="h-3 w-3 mr-1" />
-                  Simulate
-                </>
-              )}
-            </Button>
           </CardFooter>
         </div>
       </div>
+      {expanded && (
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-medium">Mission Details</h3>
+              <p>Environment: {mission.meta?.terrain || "Unknown"}</p>
+              <p>Threats: {mission.meta?.threats?.join(", ") || "None"}</p>
+              <p>Wind Speed: {mission.meta?.wind_kts || 0} knots</p>
+              <p>Laps: {mission.meta?.laps || 1}</p>
+              <p>TRL: {mission.meta?.trl || 1}</p>
+              <p>Urgency: {mission.meta?.urgency || "Low"}</p>
+              <p>Domain: {mission.meta?.domain || "General"}</p>
+              {mission.meta?.tags?.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {mission.meta.tags.map((tag, index) => (
+                    <Badge key={index} variant="secondary">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Leaderboard missionId={mission._id} />
+          </div>
+        </CardContent>
+      )}
     </Card>
   );
 }

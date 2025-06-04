@@ -7,7 +7,7 @@ export async function GET() {
       throw new Error("Failed to fetch missions");
     }
     const data = await response.json();
-    return NextResponse.json(data);
+  return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching missions:", error);
     return NextResponse.json(

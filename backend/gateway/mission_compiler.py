@@ -1,49 +1,62 @@
-from datetime import datetime
+from textwrap import dedent
 from pathlib import Path
-from jinja2 import Environment, FileSystemLoader
-from typing import Dict, Tuple
-import os
-import json
-import subprocess
+from datetime import datetime
+import json, subprocess, os
 
-TEMPLATE_DIR = Path(__file__).parent / "mission_templates"
-SKYDIVE_TRACK_DIR = Path.home() / "Library/Application Support/FPV SkyDive/tracks"
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
+ROOT              = Path(__file__).resolve().parents[2]      # ai-expo/
+WB_TPL_DIR        = ROOT / "webots" / "mission_templates"
+WB_WORLD_DIR      = ROOT / "webots" / "worlds"
+WB_WORLD_DIR.mkdir(parents=True, exist_ok=True)
 
-STEAM_APP_ID = "1278060"  # FPV SkyDive Free Steam App ID
+env = Environment(
+    loader=FileSystemLoader(str(WB_TPL_DIR)),
+    autoescape=select_autoescape()
+)
 
-def write_mission(output_path: str, meta: Dict) -> None:
-    # Read the template
-    with open(TEMPLATE_DIR / "fpv_base_skydive.json", "r") as f:
-        template = f.read()
+def write_wbt(mission_name: str, meta: dict) -> Path:
+    """Render .wbt from template + mission meta, return absolute path"""
+    tpl  = env.get_template("wb_base.wbt.j2")
+
+    # Process gates to ensure all required fields exist
+    gates = meta.get("gates", [])
+    for gate in gates:
+        # Ensure all required fields exist with defaults if missing
+        if "x" not in gate: gate["x"] = 0
+        if "y" not in gate: gate["y"] = 0
+        if "z" not in gate: gate["z"] = 0
+        if "yaw" not in gate: gate["yaw"] = 0
     
-    # Extract mission name from the output_path for the template
-    mission_name_from_path = Path(output_path).stem.split(".skydive")[-2]
+    # very naive camera: 12 m behind first gate or origin
+    g0 = gates[0] if gates else {"x": 0, "y": 0, "z": 0}
+    cam = dict(cam_x=g0["x"], cam_y=5, cam_z=g0["z"] + 12)
+
+    world_txt = tpl.render(
+        world_name   = mission_name,
+        mission_id   = meta["mission_id"],
+        background_tex = "textures/stadium.jpg",
+        gates        = gates,
+        **cam
+    )
+
+    out_path = WB_WORLD_DIR / f"{mission_name}.wbt"
+    out_path.write_text(world_txt)
+    return out_path
+
+def launch_webots(world_path: Path):
+    webots_dir = Path("/Applications/Webots.app/Contents/MacOS/webots")
+    if not webots_dir.exists():
+        raise RuntimeError("Webots not found at expected location")
+
+    # Set WEBOTS_EXTRA_PROTO_PATH to point to our protos directory
+    os.environ["WEBOTS_EXTRA_PROTO_PATH"] = str(Path(__file__).resolve().parents[2] / "webots" / "protos")
     
-    # Create gates
-    gates = [
-        {"type": "gate", "x": 0, "y": 0, "z": 10, "yaw": 0},
-        {"type": "gate", "x": 20, "y": 0, "z": 15, "yaw": 45},
-        {"type": "gate", "x": 40, "y": 0, "z": 20, "yaw": 90},
-        {"type": "gate", "x": 60, "y": 0, "z": 15, "yaw": 135},
-        {"type": "gate", "x": 80, "y": 0, "z": 10, "yaw": 180}
-    ]
-    
-    # Format gates as JSON
-    gates_json = json.dumps([{
-        "id": i + 1,
-        "type": gate["type"],
-        "pos": [gate["x"], gate["y"], gate["z"]],
-        "rot": [0, gate["yaw"], 0]
-    } for i, gate in enumerate(gates)])
-    
-    # Replace placeholders
-    content = template.replace("MISSION_NAME", mission_name_from_path)
-    content = content.replace("TERRAIN", meta.get("terrain", "city"))
-    content = content.replace("3", str(meta.get("laps", 3)))
-    content = content.replace("[]", gates_json)
-    
-    # Write the file
-    with open(output_path, "w") as f:
-        f.write(content)
+    # Launch Webots with the absolute path to the world file
+    subprocess.Popen([str(webots_dir), str(world_path)])
+
+# helper used by FastAPI endpoint
+def build_and_launch_wbt(mission_doc: dict):
+    world_path = write_wbt(mission_doc["mission_name"], mission_doc["meta"] | {"mission_id": mission_doc["_id"]})
+    launch_webots(world_path)
+    return world_path

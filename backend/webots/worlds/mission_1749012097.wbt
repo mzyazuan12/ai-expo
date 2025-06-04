@@ -1,0 +1,14 @@
+
+#VRML_SIM R2023b utf8
+WorldInfo { title "mission_1749012097" }
+Background { skyColor [1 1 1] texture "textures/stadium.jpg" }
+
+Stadium { }  # Stadium or Empty placeholder
+
+# Add a Supervisor node
+Supervisor {
+  controller "../../webots/controllers/mission_supervisor"
+  controllerArgs "MISSION_ID="
+}
+
+ 

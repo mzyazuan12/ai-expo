@@ -1,10 +1,10 @@
 import os
 from datetime import datetime
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends, status
 import httpx
 import motor.motor_asyncio
-from models import ForgePayload, TelemetryPayload
-from mission_compiler import write_mission
+from models import ForgePayload, TelemetryPayload, Challenge
+from mission_compiler import write_wbt
 import socketio
 import subprocess
 import platform
@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 import json
 import time
 from bson import ObjectId
+from pathlib import Path
 
 # Load environment variables from .env file
 load_dotenv()
@@ -20,23 +21,6 @@ load_dotenv()
 MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "sk-or-v1-8f16456ebb416567acf40669e244f156f8a1b5e669fe14b3156f8a1b5e669fe14b317524e0aa5f934b5")
 OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
-
-# SkyDive paths
-SKYDIVE_CUSTOM_TRACKS = os.path.expanduser("~/Library/Application Support/FPV SkyDive/TrackBuilder/CustomTracks")
-
-def launch_skydive():
-    """Launch FPV SkyDive via Steam based on the current platform."""
-    try:
-        if platform.system() == "Darwin":  # macOS
-            subprocess.Popen(["open", "-a", "Steam", "steam://run/1278060"])
-        elif platform.system() == "Windows":
-            subprocess.Popen(["cmd", "/C", "start", "steam://rungameid/1278060"], shell=True)
-        else:  # Linux
-            subprocess.Popen(["steam", "steam://run/1278060"])
-        return True
-    except Exception as e:
-        print(f"Error launching SkyDive: {str(e)}")
-        return False
 
 # Configure MongoDB client for local development
 try:
@@ -50,12 +34,26 @@ except Exception as e:
     print(f"Error connecting to MongoDB: {str(e)}")
     raise
 
+# Dependency to check if a user is whitelisted
+async def get_whitelisted_user(user_id: str):
+    whitelisted_user = await db.whitelisted_users.find_one({"user_id": user_id})
+    if not whitelisted_user:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not whitelisted for this action."
+        )
+    return whitelisted_user
+
 # Initialize collections if they don't exist
 async def init_db():
     try:
         # Create indexes without using a session
         await db.missions.create_index([("mission_name", 1)], unique=True)
         await db.missions.create_index([("created", -1)])
+        # Index for leaderboard sorting
+        await db.missions.create_index([("scores.lap_time_sec", 1)])
+        # Index for whitelisted users
+        await db.whitelisted_users.create_index([("user_id", 1)], unique=True)
         print("Database initialized successfully")
     except Exception as e:
         print(f"Error initializing database: {str(e)}")
@@ -149,7 +147,8 @@ async def forge(payload: ForgePayload):
         "tags": [tag.strip() for tag in payload.tags] if payload.tags else [], # Use frontend tags
         "trl": payload.trl if payload.trl is not None else ai_meta.get("trl", 1), # Use frontend trl
         "urgency": payload.urgency or ai_meta.get("urgency", "Low"), # Use frontend urgency
-        "domain": payload.domain or ai_meta.get("domain", "Unknown") # Use frontend domain
+        "domain": payload.domain or ai_meta.get("domain", "Unknown"), # Use frontend domain
+        "gates": payload.meta.get("gates", []) if payload.meta else [] # Include gates from meta
     }
 
     # Generate a unique mission name (can still be based on time for uniqueness)
@@ -179,46 +178,21 @@ async def forge(payload: ForgePayload):
 @app.post("/simulate/{mission_id}")
 async def simulate(mission_id: str):
 
+    mission = await db.missions.find_one({"_id": ObjectId(mission_id)})
+    if not mission:
+        raise HTTPException(status_code=404, detail="Mission not found")
+
     try:
-        # Fetch the mission data from the database
-        mission = await db.missions.find_one({"_id": ObjectId(mission_id)})
-        
-        if not mission:
-            raise HTTPException(status_code=404, detail="Mission not found")
-            
-        mission_data = mission.get("meta")
-        mission_name = mission.get("mission_name")
+        from mission_compiler import build_and_launch_wbt   # local import picks new code
+        world_path = build_and_launch_wbt(mission)
 
-        if not mission_data:
-            raise ValueError("Mission data not found in database entry")
-
-        # Ensure the CustomTracks directory exists
-        os.makedirs(SKYDIVE_CUSTOM_TRACKS, exist_ok=True)
-        
-        # Write the mission file using the mission compiler
-        # Truncate mission name to fit SkyDive's limit (e.g., last 20 characters)
-        truncated_mission_name = mission_name[-20:] 
-        mission_file = os.path.join(SKYDIVE_CUSTOM_TRACKS, f"{truncated_mission_name}.skydive.json")
-        write_mission(mission_file, mission_data)
-        
-        # Launch SkyDive
-        if launch_skydive():
-            return {
-                "status": "success",
-                "message": "SkyDive launched successfully",
-                "mission_name": mission_name,
-                "mission_file": mission_file
-            }
-        else:
-            raise Exception("Failed to launch SkyDive")
-            
-    except Exception as e:
-        print(f"Error in simulation: {str(e)}")
         return {
-            "status": "error",
-            "message": f"Failed to start simulation: {str(e)}",
-            "error": str(e)
-        }, 500
+            "status":  "success",
+            "message": "Webots launched",
+            "world":   str(world_path)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"simulate failed: {e}")
 
 @app.post("/telemetry")
 async def telemetry(data: TelemetryPayload):
@@ -226,7 +200,8 @@ async def telemetry(data: TelemetryPayload):
         {"mission_name": data.mission},
         {"$push": {"scores": {"pilot": data.pilot, "lap_time_sec": data.lap_time_sec}}}
     )
-    await sio.emit("score_update", data.model_dump())
+    # Emit score update to a room specific to the mission name
+    await sio.emit("score_update", data.model_dump(), room=data.mission)
     return {"status": "ok"}
 
 @app.get("/missions")
@@ -270,6 +245,189 @@ async def get_upvotes(mission_name: str):
     if not mission:
         raise HTTPException(status_code=404, detail="Mission not found")
     return {"upvotes": mission.get("upvotes", 0)}
+
+@app.post("/challenges")
+async def create_challenge(challenge: Challenge):
+    """Create a new challenge and save it to the database."""
+    # In a real application, author_uid would come from authentication
+    author_uid = "anonymous_user" # Placeholder for now
+
+    challenge_doc = challenge.model_dump()
+    challenge_doc["author_uid"] = author_uid
+    challenge_doc["created"] = datetime.utcnow().isoformat()
+    # State is already defaulted to "pending" in the Pydantic model, but we ensure it here.
+    challenge_doc["state"] = "pending"
+
+    # Insert the new challenge into the database
+    insert_result = await db.challenges.insert_one(challenge_doc)
+
+    # Fetch the newly created document to return it with the _id
+    new_challenge = await db.challenges.find_one({"_id": insert_result.inserted_id})
+
+    if not new_challenge:
+        raise HTTPException(status_code=500, detail="Failed to retrieve newly created challenge")
+
+    # Ensure _id is a string for the frontend
+    new_challenge["_id"] = str(new_challenge["_id"])
+
+    # Note: We are skipping the auto-moderation/Redis queue step for this initial scaffold
+
+    return new_challenge
+
+@app.get("/missions/{mission_id}/leaderboard")
+async def get_leaderboard(mission_id: str, top: int = 10):
+    """Get the top lap times for a specific mission."""
+    # Validate mission_id is a valid ObjectId
+    if not ObjectId.is_valid(mission_id):
+        raise HTTPException(status_code=400, detail="Invalid Mission ID format")
+
+    # Define the aggregation pipeline
+    pipeline = [
+      {"$match":{"_id": ObjectId(mission_id)}},
+      {"$unwind":"$scores"},
+      {"$group":{
+          "_id":"$scores.pilot",
+          "fastest":{"$min":"$scores.lap_time_sec"}}},
+      {"$sort":{"fastest":1}},
+      {"$limit": top}
+    ]
+
+    # Execute the pipeline
+    leaderboard_data = []
+    async for doc in db.missions.aggregate(pipeline):
+        leaderboard_data.append({
+            "pilot": doc["_id"],
+            "fastest_lap_time_sec": doc["fastest"]
+        })
+
+    # Optional: Check if the mission exists (the $match stage handles this partially)
+    # A more robust check would be to find the mission first, then run the pipeline
+    mission = await db.missions.find_one({"_id": ObjectId(mission_id)})
+    if not mission:
+         raise HTTPException(status_code=404, detail="Mission not found")
+
+    # The pipeline already filters by mission_id, so if mission exists but pipeline returns empty,
+    # it means there are no scores yet, which is valid.
+    return leaderboard_data
+
+@app.post("/challenges/{challenge_id}/state")
+async def update_challenge_state(challenge_id: str, state: str, user_id: str = Depends(get_whitelisted_user)):
+    """Update the state of a challenge (whitelist/reject)."""
+    if state not in ["pending", "whitelisted", "rejected"]:
+        raise HTTPException(status_code=400, detail="Invalid state. Must be one of: pending, whitelisted, rejected")
+
+    # Validate challenge_id is a valid ObjectId
+    if not ObjectId.is_valid(challenge_id):
+        raise HTTPException(status_code=400, detail="Invalid Challenge ID format")
+
+    # Update the challenge state
+    result = await db.challenges.update_one(
+        {"_id": ObjectId(challenge_id)},
+        {"$set": {"state": state}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    # Fetch and return the updated challenge
+    updated_challenge = await db.challenges.find_one({"_id": ObjectId(challenge_id)})
+    if not updated_challenge:
+        raise HTTPException(status_code=500, detail="Failed to retrieve updated challenge")
+
+    # Convert ObjectId to string for JSON serialization
+    updated_challenge["_id"] = str(updated_challenge["_id"])
+    return updated_challenge
+
+@app.get("/missions/{mission_id}")
+async def get_mission(mission_id: str):
+    """Get a single mission by its ID."""
+    if not ObjectId.is_valid(mission_id):
+        raise HTTPException(status_code=400, detail="Invalid Mission ID format")
+
+    mission = await db.missions.find_one({"_id": ObjectId(mission_id)})
+
+    if not mission:
+        raise HTTPException(status_code=404, detail="Mission not found")
+
+    # Convert ObjectId to string for JSON serialization
+    mission["_id"] = str(mission["_id"])
+
+    return mission
+
+@app.post("/missions/{mission_id}/complete")
+async def complete_mission(mission_id: str):
+    """Mark a mission as completed."""
+    if not ObjectId.is_valid(mission_id):
+        raise HTTPException(status_code=400, detail="Invalid Mission ID format")
+
+    result = await db.missions.update_one(
+        {"_id": ObjectId(mission_id)},
+        {"$set": {"status": "completed", "completion_time": datetime.utcnow()}}
+    )
+
+    if result.modified_count == 0:
+        # Check if mission exists but status is already completed/failed
+        mission = await db.missions.find_one({"_id": ObjectId(mission_id)})
+        if mission:
+             # Mission found, but not modified means status was already final
+             return {"message": f"Mission {mission_id} status was already {mission.get('status', 'finalized')}"}
+        else:
+            raise HTTPException(status_code=404, detail="Mission not found")
+
+    return {"message": f"Mission {mission_id} marked as completed"}
+
+@app.post("/missions/{mission_id}/fail")
+async def fail_mission(mission_id: str, reason: str = "unknown"):
+    """Mark a mission as failed."""
+    if not ObjectId.is_valid(mission_id):
+        raise HTTPException(status_code=400, detail="Invalid Mission ID format")
+
+    result = await db.missions.update_one(
+        {"_id": ObjectId(mission_id)},
+        {"$set": {"status": "failed", "failure_reason": reason, "completion_time": datetime.utcnow()}}
+    )
+
+    if result.modified_count == 0:
+        # Check if mission exists but status is already completed/failed
+        mission = await db.missions.find_one({"_id": ObjectId(mission_id)})
+        if mission:
+             # Mission found, but not modified means status was already final
+             return {"message": f"Mission {mission_id} status was already {mission.get('status', 'finalized')}"}
+        else:
+            raise HTTPException(status_code=404, detail="Mission not found")
+
+    return {"message": f"Mission {mission_id} marked as failed with reason: {reason}"}
+
+@app.post("/whitelisted-users/{user_id}")
+async def add_whitelisted_user(user_id: str):
+    """Add a user to the whitelist."""
+    try:
+        result = await db.whitelisted_users.insert_one({"user_id": user_id})
+        if result.inserted_id:
+            return {"message": f"User {user_id} added to whitelist"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to add user to whitelist")
+    except Exception as e:
+        if "duplicate key error" in str(e).lower():
+            raise HTTPException(status_code=400, detail="User is already whitelisted")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/whitelisted-users/{user_id}")
+async def remove_whitelisted_user(user_id: str):
+    """Remove a user from the whitelist."""
+    result = await db.whitelisted_users.delete_one({"user_id": user_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found in whitelist")
+    return {"message": f"User {user_id} removed from whitelist"}
+
+@app.get("/whitelisted-users")
+async def get_whitelisted_users():
+    """Get a list of all whitelisted user IDs."""
+    cursor = db.whitelisted_users.find({}, {"_id": 0, "user_id": 1})
+    whitelisted_users = []
+    async for doc in cursor:
+        whitelisted_users.append(doc["user_id"])
+    return whitelisted_users
 
 # Export the SocketIO app for uvicorn
 application = socket_app
