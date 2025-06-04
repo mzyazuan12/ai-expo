@@ -15,13 +15,20 @@ PROTO Crazyflie [
     rotation IS rotation
     controller IS controller
     controllerArgs IS controllerArgs
-    device [
+    children [
       Motor { name "m1_motor" }
       Motor { name "m2_motor" }
       Motor { name "m3_motor" }
       Motor { name "m4_motor" }
-    ]
-    children [
+      InertialUnit {
+        name "imu"
+      }
+      GPS {
+        name "gps"
+      }
+      Gyro {
+        name "gyro"
+      }
       Solid {
         translation 0 0 0
         rotation 0 1 0 0
@@ -31,9 +38,9 @@ PROTO Crazyflie [
               baseColor 0.1 0.1 0.1
               metalness 0
               roughness 0.5
-              textureImage "textures/crazyflie_board_albedo.jpg"
-              normalMap "textures/crazyflie_board_normal.jpg"
-              occlusionMap "textures/crazyflie_board_ao.jpg"
+              baseColorMap ImageTexture { url "textures/crazyflie_board_albedo.jpg" }
+              normalMap ImageTexture { url "textures/crazyflie_board_normal.jpg" }
+              occlusionMap ImageTexture { url "textures/crazyflie_board_ao.jpg" }
             }
             geometry Box { size 0.065 0.065 0.01 }
           }

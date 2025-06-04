@@ -18,14 +18,14 @@ from pathlib import Path
 load_dotenv()
 
 # Get environment variables with defaults
-MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
+MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27018")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "sk-or-v1-8f16456ebb416567acf40669e244f156f8a1b5e669fe14b3156f8a1b5e669fe14b317524e0aa5f934b5")
 OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 
 # Configure MongoDB client for local development
 try:
     mongo_client = motor.motor_asyncio.AsyncIOMotorClient(
-        "mongodb://localhost:27017",
+        "mongodb://localhost:27018",
         serverSelectionTimeoutMS=5000
     )
     db = mongo_client.simforge

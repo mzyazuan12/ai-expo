@@ -41,7 +41,23 @@ class Challenge(BaseModel):
     trl: int = 1
     urgency: str = "low"
     domain: str = "general"
-    state: str = "pending" # pending | whitelisted | rejected
+    environment: str = "general"
+    state: str = "draft"  # draft | pending_review | approved | rejected | archived
     redactions: List[str] = []
-    # author_uid will be added by the backend
-    # created will be added by the backend
+    author_uid: str
+    author_name: Optional[str] = None
+    is_anonymous: bool = False
+    created: str
+    updated: str
+    upvotes: int = 0
+    video_url: Optional[str] = None
+    solutions: List[dict] = []
+    moderators: List[str] = []
+    review_notes: Optional[str] = None
+    classification_level: str = "unclassified"  # unclassified | confidential | secret | top_secret
+    verification_required: bool = False
+    allowed_provider_types: List[str] = ["academia", "startup", "industry"]
+    required_clearance_level: Optional[str] = None
+    threats: Optional[List[str]] = None
+    wind_kts: Optional[int] = None
+    laps: Optional[int] = None

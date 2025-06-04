@@ -6,11 +6,39 @@ EXTERNPROTO "../protos/Supervisor.proto"
 
 WorldInfo { title "{{ world_name }}" }
 
-Viewpoint  { orientation 1 0 0 -1.2  position 0 3 15 }
-DirectionalLight { direction -0.3 -1 -0.2 }
-Background { skyColor [1 1 1] }
+Viewpoint  { 
+  orientation -0.2 0.9 0.3 1.2
+  position 8 5 12
+  follow "CF1"
+  followType "Pan and Tilt"
+  followSmoothness 0.2
+}
+DirectionalLight {
+  direction -0.5 -1 -0.2
+  intensity 0.8
+  castShadows TRUE
+}
+
+SpotLight {
+  attenuation 0 0 1
+  beamWidth 0.7
+  cutOffAngle 0.9
+  direction 0 -1 0
+  intensity 0.8
+  location 0 10 0
+  castShadows TRUE
+}
+Background {
+  skyColor [
+    0.15 0.5 0.8,
+    0.5 0.8 0.9,
+    0.9 0.9 1
+  ]
+  luminosity 1.0
+}
 
 Stadium {
+  name "racing_stadium"
 }
 
 # ------------  SUPERVISOR  ------------
@@ -32,9 +60,71 @@ Transform {
   translation {{ gate.x }} {{ gate.y }} {{ gate.z }}
   rotation 0 1 0 {{ gate.yaw }}
   children [
-    Shape {
-      appearance Appearance { material Material { diffuseColor 1 0 0 } }
-      geometry   Box { size 0.5 0.5 0.05 }
+    DEF GATE_FRAME Transform {
+      children [
+        # Top bar
+        Transform {
+          translation 0 1.0 0
+          children [
+            Shape {
+              appearance PBRAppearance {
+                baseColor 1 0.2 0.1
+                metalness 0.8
+                roughness 0.3
+              }
+              geometry Box { size 2.0 0.1 0.1 }
+            }
+          ]
+        }
+        # Left post
+        Transform {
+          translation -0.95 0.5 0
+          children [
+            Shape {
+              appearance PBRAppearance {
+                baseColor 1 0.2 0.1
+                metalness 0.8
+                roughness 0.3
+              }
+              geometry Box { size 0.1 1.0 0.1 }
+            }
+          ]
+        }
+        # Right post
+        Transform {
+          translation 0.95 0.5 0
+          children [
+            Shape {
+              appearance PBRAppearance {
+                baseColor 1 0.2 0.1
+                metalness 0.8
+                roughness 0.3
+              }
+              geometry Box { size 0.1 1.0 0.1 }
+            }
+          ]
+        }
+        # Gate number
+        Transform {
+          translation 0 1.2 0
+          children [
+            Shape {
+              appearance PBRAppearance {
+                baseColor 1 1 1
+                emissiveColor 1 1 1
+                emissiveIntensity 0.5
+              }
+              geometry Text {
+                string [ "{{ loop.index }}" ]
+                fontStyle FontStyle {
+                  size 0.3
+                  justify "CENTER"
+                }
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
   name "Gate_{{ loop.index }}"

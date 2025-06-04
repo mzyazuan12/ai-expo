@@ -21,8 +21,8 @@ export const useLeaderboard = (missionId: string | null) => {
   // Update state when initial data is fetched
   useEffect(() => {
     if (data) {
-      // Sort initial data by fastest lap time
-      const sortedData = [...data].sort((a, b) => a.fastest_lap_time_sec - b.fastest_lap_time_sec);
+      // Ensure data is an array and sort it
+      const sortedData = Array.isArray(data) ? [...data].sort((a, b) => a.fastest_lap_time_sec - b.fastest_lap_time_sec) : [];
       setLeaderboard(sortedData);
     }
   }, [data]);

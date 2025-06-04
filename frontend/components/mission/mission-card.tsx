@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { ChevronDown, ChevronUp, Clock, Map, ThumbsUp, Play, Pause, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Clock, Map, ThumbsUp, Play, Loader2, AlertTriangle, Rocket } from "lucide-react";
 import { Mission } from "@/lib/types";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import {
@@ -19,12 +19,33 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Leaderboard } from "@/components/mission/leaderboard";
 import { startSimulation, upvoteMission } from "@/lib/mission-service";
+import { MissionComments } from "@/components/mission/mission-comments";
 
 interface MissionCardProps {
   mission: Mission;
+  onUpvote?: (id: string) => Promise<void>;
 }
 
-export function MissionCard({ mission }: MissionCardProps) {
+const urgencyColors = {
+  critical: "bg-red-500/10 text-red-500 hover:bg-red-500/20",
+  high: "bg-orange-500/10 text-orange-500 hover:bg-orange-500/20",
+  medium: "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20",
+  low: "bg-green-500/10 text-green-500 hover:bg-green-500/20",
+};
+
+const trlColors = {
+  1: "bg-gray-500/10 text-gray-500 hover:bg-gray-500/20",
+  2: "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20",
+  3: "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20",
+  4: "bg-purple-500/10 text-purple-500 hover:bg-purple-500/20",
+  5: "bg-pink-500/10 text-pink-500 hover:bg-pink-500/20",
+  6: "bg-rose-500/10 text-rose-500 hover:bg-rose-500/20",
+  7: "bg-red-500/10 text-red-500 hover:bg-red-500/20",
+  8: "bg-orange-500/10 text-orange-500 hover:bg-orange-500/20",
+  9: "bg-green-500/10 text-green-500 hover:bg-green-500/20",
+};
+
+export function MissionCard({ mission, onUpvote }: MissionCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
   const [isUpvoting, setIsUpvoting] = useState(false);
@@ -63,9 +84,10 @@ export function MissionCard({ mission }: MissionCardProps) {
   };
 
   const handleUpvote = async () => {
+    if (!onUpvote) return;
     setIsUpvoting(true);
     try {
-      await upvoteMission(mission._id);
+      await onUpvote(mission._id);
       toast({
         title: "Upvoted",
         description: "Your upvote has been recorded.",
@@ -92,16 +114,34 @@ export function MissionCard({ mission }: MissionCardProps) {
       <CardHeader className="pb-2 cursor-pointer" onClick={() => setExpanded(!expanded)}>
         <div className="flex justify-between items-start">
           <div className="space-y-1">
-            <CardTitle className="text-base font-medium">{mission.mission_name || "Untitled Mission"}</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base font-medium">{mission.mission_name || "Untitled Mission"}</CardTitle>
+              <Badge 
+                variant="outline" 
+                className={cn(
+                  "flex items-center gap-1",
+                  urgencyColors[mission.meta?.urgency?.toLowerCase() as keyof typeof urgencyColors] || urgencyColors.low
+                )}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                {mission.meta?.urgency || "Low"}
+              </Badge>
+              <Badge 
+                variant="outline" 
+                className={cn(
+                  "flex items-center gap-1",
+                  trlColors[mission.meta?.trl as keyof typeof trlColors] || trlColors[1]
+                )}
+              >
+                <Rocket className="h-3 w-3" />
+                TRL {mission.meta?.trl || 1}
+              </Badge>
+            </div>
             <CardDescription>
               Created {mission.created ? format(new Date(mission.created), "MMM d, yyyy") : "Unknown date"}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="flex items-center gap-1">
-              <ThumbsUp className="h-3 w-3" />
-              {mission.upvotes || 0}
-            </Badge>
             <Button
               variant="ghost"
               size="sm"
@@ -110,12 +150,14 @@ export function MissionCard({ mission }: MissionCardProps) {
                 handleUpvote();
               }}
               disabled={isUpvoting}
+              className="flex items-center gap-1"
             >
               {isUpvoting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <ThumbsUp className="h-4 w-4" />
               )}
+              <span className="text-sm">{mission.upvotes || 0}</span>
             </Button>
             <Button
               variant="ghost"
@@ -156,7 +198,7 @@ export function MissionCard({ mission }: MissionCardProps) {
           <CardContent className="pt-2">
             <div className="text-sm space-y-3">
               <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
-                    <Clock className="h-4 w-4 mr-1" />
+                <Clock className="h-4 w-4 mr-1" />
                 <span className="font-medium">Lap Times</span>
               </div>
               {
@@ -203,7 +245,7 @@ export function MissionCard({ mission }: MissionCardProps) {
               <div>
                 <p className="text-sm font-medium">Domain</p>
                 <p className="text-sm text-gray-500">{mission.meta?.domain || "N/A"}</p>
-                </div>
+              </div>
             </div>
           </CardContent>
           <CardFooter className="flex justify-between pt-0">
@@ -237,6 +279,7 @@ export function MissionCard({ mission }: MissionCardProps) {
               )}
             </div>
             <Leaderboard missionId={mission._id} />
+            <MissionComments missionId={mission._id} />
           </div>
         </CardContent>
       )}

@@ -8,9 +8,10 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { z } from "zod";
-import { ChallengeForm, challengeFormSchema } from "@/components/challenge/challenge-form";
+import { ChallengeForm } from "@/components/challenge/challenge-form";
 import { Challenge } from "@/lib/types";
 import { ChallengeCard } from "@/components/challenge/challenge-card";
+import type { ChallengeFormData } from "@/lib/types";
 
 export default function Dashboard() {
   const [missions, setMissions] = useState<Mission[]>([]);
@@ -66,13 +67,20 @@ export default function Dashboard() {
     setIsLoadingMission(true);
     try {
       const processedData = {
-        thread_text: data.tactics,
+        mission_name: data.mission_name,
+        thread_text: data.thread_text,
         imageUrl: data.imageUrl || null,
-        tags: data.tags ? data.tags.split(',').map(tag => tag.trim()) : [],
-        trl: data.trl,
-        urgency: data.urgency,
-        domain: data.domain,
-        environment: data.environment,
+        tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()) : [],
+        meta: {
+          trl: data.trl,
+          urgency: data.urgency,
+          domain: data.domain,
+          environment: data.environment,
+          threats: data.threats ? data.threats.split(',').map((threat: string) => threat.trim()) : [],
+          wind_kts: data.wind_kts,
+          laps: data.laps,
+          is_anonymous: data.is_anonymous
+        }
       };
 
       const response = await fetch("/api/forge", {
@@ -90,7 +98,8 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Error creating mission:", error);
       toast({
-        title: "Error", description: error instanceof Error ? error.message : "Failed to create mission. Please try again.",
+        title: "Error", 
+        description: error instanceof Error ? error.message : "Failed to create mission. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -98,12 +107,12 @@ export default function Dashboard() {
     }
   };
 
-  const handleChallengeSubmit = async (data: z.infer<typeof challengeFormSchema>) => {
+  const handleChallengeSubmit = async (data: ChallengeFormData) => {
     setIsLoadingChallenge(true);
     try {
       const processedData = {
         ...data,
-        tags: data.tags ? data.tags.split(',').map(tag => tag.trim()) : [],
+        tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()) : [],
       };
 
       const response = await fetch("/api/challenges", {
@@ -217,7 +226,6 @@ export default function Dashboard() {
             <ChallengeCard
               key={challenge._id}
               challenge={challenge}
-              onStateChange={handleChallengeStateChange}
             />
           ))}
            {/* Display Missions */}

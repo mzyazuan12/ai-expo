@@ -1,10 +1,10 @@
-#VRML_SIM R2023b utf8
-# Motor PROTO for Crazyflie quadcopter
-
+#VRML_SIM R2025a utf8
 PROTO Motor [
   field SFString name "motor"
 ] {
   RotationalMotor {
     name IS name
+    maxTorque 0.5
+    maxVelocity 100
   }
-} 
+}

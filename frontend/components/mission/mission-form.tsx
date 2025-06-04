@@ -3,18 +3,9 @@
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { Rocket, ImageIcon } from "lucide-react";
-
+import * as z from "zod";
+import { Rocket, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -26,23 +17,36 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const formSchema = z.object({
-  tactics: z
-    .string()
-    .min(10, { message: "Tactics must be at least 10 characters." })
-    .max(1000, { message: "Tactics must not exceed 1000 characters." }),
-  imageUrl: z
-    .string()
-    .url({ message: "Please enter a valid URL." })
-    .optional()
-    .or(z.literal("")),
+  mission_name: z.string().min(1, "Mission name is required"),
+  thread_text: z.string().min(1, "Tactics description is required"),
+  imageUrl: z.string().optional(),
   tags: z.string().optional(),
-  trl: z.coerce.number().min(1).max(9),
-  urgency: z.enum(["low", "medium", "high"]),
-  domain: z.string(),
-  environment: z.enum(["oil_rig", "stadium", "construction_arena", "neon_island", "red_canyon", "airport", "flight_school", "micro_drone_edition", "japan_pack"]).default("stadium"),
+  trl: z.number().min(1).max(9),
+  urgency: z.enum(["critical", "high", "medium", "low"]),
+  domain: z.string().min(1, "Domain is required"),
+  environment: z.string().min(1, "Environment is required"),
+  terrain: z.string().min(1, "Terrain is required"),
+  threats: z.string().optional(),
+  wind_kts: z.number().min(0).max(100),
+  laps: z.number().min(1).max(100),
+  is_anonymous: z.boolean().default(false),
 });
 
 interface MissionFormProps {
@@ -56,13 +60,19 @@ export function MissionForm({ onSubmit, isLoading }: MissionFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      tactics: "",
+      mission_name: "",
+      thread_text: "",
       imageUrl: "",
       tags: "",
       trl: 1,
       urgency: "low",
       domain: "general",
       environment: "stadium",
+      terrain: "",
+      threats: "",
+      wind_kts: 0,
+      laps: 1,
+      is_anonymous: false,
     },
   });
 
@@ -84,8 +94,7 @@ export function MissionForm({ onSubmit, isLoading }: MissionFormProps) {
           Create New Mission
         </CardTitle>
         <CardDescription>
-          Design your drone racing mission with custom tactics and optional
-          visualization.
+          Design your drone racing mission with custom tactics and optional visualization.
         </CardDescription>
       </CardHeader>
       <Form {...form}>
@@ -93,56 +102,70 @@ export function MissionForm({ onSubmit, isLoading }: MissionFormProps) {
           <CardContent className="space-y-4">
             <FormField
               control={form.control}
-              name="tactics"
+              name="mission_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Mission Tactics</FormLabel>
+                  <FormLabel>Mission Name</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Enter your racing tactics and instructions here..."
-                      className="min-h-[150px] resize-none"
-                      {...field}
-                    />
+                    <Input placeholder="Enter mission name" {...field} />
                   </FormControl>
                   <FormDescription>
-                    Detail your drone racing strategy, waypoints, and special maneuvers.
+                    Give your mission a descriptive name.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {showImageField ? (
+            <FormField
+              control={form.control}
+              name="thread_text"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tactics Description</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Describe the mission tactics and objectives..."
+                      className="min-h-[100px]"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Provide detailed information about the mission tactics.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowImageField(!showImageField)}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {showImageField ? "Remove Image" : "Add Image"}
+              </Button>
+            </div>
+
+            {showImageField && (
               <FormField
                 control={form.control}
                 name="imageUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Image URL (Optional)</FormLabel>
+                    <FormLabel>Image URL</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="https://example.com/image.jpg"
-                        {...field}
-                      />
+                      <Input placeholder="Enter image URL" {...field} />
                     </FormControl>
                     <FormDescription>
-                      Provide an image URL to visualize your racing course.
+                      Add a URL to an image that represents your mission.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-                onClick={() => setShowImageField(true)}
-              >
-                <ImageIcon className="h-4 w-4" />
-                Add Course Image
-              </Button>
             )}
 
             <FormField
@@ -150,109 +173,221 @@ export function MissionForm({ onSubmit, isLoading }: MissionFormProps) {
               name="tags"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tags (Optional)</FormLabel>
+                  <FormLabel>Tags</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter tags separated by commas" {...field} />
+                    <Input placeholder="Enter tags (comma-separated)" {...field} />
                   </FormControl>
                   <FormDescription>
-                    Add tags to categorize your mission.
+                    Add relevant tags to categorize your mission.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="environment"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Environment</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="trl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Technology Readiness Level (TRL)</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                      defaultValue={field.value.toString()}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select TRL" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => (
+                          <SelectItem key={level} value={level.toString()}>
+                            TRL {level}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Select the technology readiness level.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="urgency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Urgency</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select urgency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="critical">Critical</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Set the urgency level of the mission.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="domain"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Domain</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select environment" />
-                      </SelectTrigger>
+                      <Input placeholder="Enter domain" {...field} />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="oil_rig">Oil Rig</SelectItem>
-                      <SelectItem value="stadium">Stadium</SelectItem>
-                      <SelectItem value="construction_arena">Construction Arena</SelectItem>
-                      <SelectItem value="neon_island">Neon Island (DLC)</SelectItem>
-                      <SelectItem value="red_canyon">Red Canyon (DLC)</SelectItem>
-                      <SelectItem value="airport">Airport (DLC)</SelectItem>
-                      <SelectItem value="flight_school">Flight School (DLC)</SelectItem>
-                      <SelectItem value="micro_drone_edition">Micro Drone Edition (DLC)</SelectItem>
-                      <SelectItem value="japan_pack">Japan Pack (DLC)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Select the simulation environment.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormDescription>
+                      Specify the domain of the mission.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="trl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>TRL (Technology Readiness Level)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min="1" max="9" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Select the technology readiness level (1-9).
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="environment"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Environment</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select environment" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="stadium">Stadium</SelectItem>
+                        <SelectItem value="urban">Urban</SelectItem>
+                        <SelectItem value="rural">Rural</SelectItem>
+                        <SelectItem value="mountain">Mountain</SelectItem>
+                        <SelectItem value="desert">Desert</SelectItem>
+                        <SelectItem value="arctic">Arctic</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Choose the mission environment.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-            <FormField
-              control={form.control}
-              name="urgency"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Urgency</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="terrain"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Terrain</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select urgency" />
-                      </SelectTrigger>
+                      <Input placeholder="Enter terrain" {...field} />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Select the urgency level of the mission.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormDescription>
+                      Specify the terrain of the mission.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="domain"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Domain</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter domain" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Specify the domain of the mission.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="threats"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Threats</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter threats (comma-separated)" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      List potential threats in the mission area.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="wind_kts"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Wind Speed (knots)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        {...field}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value);
+                          field.onChange(isNaN(value) ? 0 : value);
+                        }}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Set the wind speed in knots.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="laps"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Number of Laps</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="100"
+                        {...field}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value);
+                          field.onChange(isNaN(value) ? 1 : value);
+                        }}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Set the number of laps for the mission.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </CardContent>
           <CardFooter className="flex justify-between">
             <Button
