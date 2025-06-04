@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 // Define route matchers
 const isProtectedRoute = createRouteMatcher([
@@ -12,7 +13,7 @@ const isAdminRoute = createRouteMatcher(['/admin(.*)']);
 
 export default clerkMiddleware(async (auth, req) => {
   // Define your specific admin user ID
-  const adminUserId = "YOUR_ADMIN_CLERK_USER_ID"; // <<< REPLACE WITH YOUR ACTUAL CLERK USER ID
+  const adminUserId = "user_2y2H6vZzcLKxExPVCd7gZd9opPE"; // <<< REPLACE WITH YOUR ACTUAL CLERK USER ID
 
   // If it's a protected route, ensure user is authenticated
   if (isProtectedRoute(req)) {
@@ -73,6 +74,20 @@ export default clerkMiddleware(async (auth, req) => {
   // For public routes or non-protected routes, allow access
   return NextResponse.next();
 });
+
+export function middleware(request: NextRequest) {
+  // Check if the request is for the admin page
+  if (request.nextUrl.pathname.startsWith("/admin")) {
+    const adminToken = request.cookies.get("adminToken");
+    
+    // If no admin token is found, redirect to admin login
+    if (!adminToken) {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [

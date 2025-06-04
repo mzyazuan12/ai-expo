@@ -1,0 +1,103 @@
+#VRML_SIM R2023b utf8
+WorldInfo {
+  info [
+    "SimForge Drone Racing World"
+    "Generated from mission template"
+  ]
+  title "SimForge Mission"
+  basicTimeStep 16
+  physicsDisableTime 0
+  physicsDisableLinearThreshold 1e-10
+  physicsDisableAngularThreshold 1e-10
+  physicsEnableTime 0
+  physicsGravity 0 -9.81 0
+  physicsEngine "ODE"
+  physicsWorldInfo {
+    ERP 0.2
+    contactERP 0.2
+    cfm 0.0
+    contactCFM 0.0
+    contactSurfaceLayer 0.001
+    contactMaxCorrectingVel 100.0
+    contactFriction 0.0
+    bounce 0.0
+    bounceVelocity 0.1
+    maxContacts 20
+    minSubSteps 8
+    maxSubSteps 16
+  }
+}
+
+Viewpoint {
+  orientation 0.57735 0.57735 0.57735 2.0944
+  position 0 10 20
+  follow "Crazyflie"
+}
+
+Background {
+  skyColor [
+    0.4 0.7 1.0
+  ]
+}
+
+TexturedBackground {
+}
+
+TexturedBackgroundLight {
+}
+
+Floor {
+  size 100 100
+  tileSize 1 1
+  appearance PBRAppearance {
+    baseColorMap ImageTexture {
+      url [
+        "textures/floor.jpg"
+      ]
+    }
+    roughness 1
+    metalness 0
+  }
+}
+
+# Environment-specific elements
+{% if meta.terrain == "stadium" %}
+Stadium {
+  translation 0 0 0
+  size 50 30 50
+}
+{% elif meta.terrain == "gymnasium" %}
+Gymnasium {
+  translation 0 0 0
+  size 40 20 40
+}
+{% endif %}
+
+# Mission gates
+{% for gate in meta.gates %}
+Gate {
+  translation {{ gate.x }} {{ gate.y }} {{ gate.z }}
+  rotation 0 1 0 {{ gate.yaw }}
+  size 2 2 0.1
+  color 1 0 0
+}
+{% endfor %}
+
+# Drone
+Crazyflie {
+  translation 0 1 0
+  rotation 0 1 0 0
+  controller "crazyflie_controller"
+  controllerArgs [
+    "--mission-id={{ mission_id }}"
+  ]
+}
+
+# Mission supervisor
+Supervisor {
+  translation 0 0 0
+  controller "mission_supervisor"
+  controllerArgs [
+    "--mission-id={{ mission_id }}"
+  ]
+} 
