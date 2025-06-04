@@ -1,0 +1,28 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "../protos/Stadium.proto"
+EXTERNPROTO "../protos/Supervisor.proto"
+
+WorldInfo {
+  title "mission_1749022666"
+}
+Viewpoint {
+  orientation -0.8556114263701682 -0.15112585882678073 0.49506571468712546 1.7200969592292494
+  position 18651.977114459878 2907.1069728412417 2729.6617992264373
+}
+DirectionalLight {
+  direction -0.3 -1 -0.2
+}
+Background {
+  skyColor [
+    1 1 1
+  ]
+}
+Stadium {
+}
+DEF MissionSupervisor Supervisor {
+  controller "mission_supervisor"
+  controllerArgs [
+    "MISSION_ID=683ff7ca0c51367a38f68014"
+  ]
+}

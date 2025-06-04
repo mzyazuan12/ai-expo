@@ -1,0 +1,66 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "../protos/Stadium.proto"
+EXTERNPROTO "../protos/Crazyflie.proto"
+EXTERNPROTO "../protos/Supervisor.proto"
+
+WorldInfo {
+  title "mission_1749019136"
+}
+Viewpoint {
+  fieldOfView 0.7
+  orientation -0.37699539369895047 0.8718595323259605 -0.3126266607666898 4.393580713424291
+  position 0 12 -22
+  description "StartCam"
+}
+Background {
+  skyColor [
+    1 1 1
+  ]
+}
+Stadium {
+}
+DEF MissionSupervisor Supervisor {
+  controller "mission_supervisor"
+  controllerArgs [
+    "MISSION_ID=683fea002f4f7fa4a9515a52"
+  ]
+}
+DEF CF1 Crazyflie {
+  translation 0 0.05 0
+  controller "crazyflie_controller"
+}
+DEF Gate_1 Solid {
+  translation 0 1 5
+  rotation 0 1 0 0
+  children [
+    Shape {
+      appearance Appearance {
+        material Material {
+          diffuseColor 1 0 0
+        }
+      }
+      geometry Box {
+        size 1 1 0.1
+      }
+    }
+  ]
+  name "Gate_1"
+}
+DEF Gate_2 Solid {
+  translation 0 1 10
+  rotation 0 1 0 0
+  children [
+    Shape {
+      appearance Appearance {
+        material Material {
+          diffuseColor 1 0 0
+        }
+      }
+      geometry Box {
+        size 1 1 0.1
+      }
+    }
+  ]
+  name "Gate_2"
+}

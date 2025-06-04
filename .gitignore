@@ -26,5 +26,3 @@ npm-debug.log*
 Thumbs.db 
 
 # Webots generated files
-webots/worlds/*.wbt
-webots/worlds/*.wbo 

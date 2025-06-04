@@ -1,0 +1,59 @@
+#VRML_SIM R2023b utf8
+# --  GLOBALS --------------------------------------------------
+EXTERNPROTO "../protos/Stadium.proto"
+EXTERNPROTO "../protos/Crazyflie.proto"
+EXTERNPROTO "../protos/Supervisor.proto"
+
+WorldInfo { title "mission_1749016176" }
+
+Viewpoint {
+  description "StartCam"
+  position    0 5 17
+  orientation -0.4 0.9 0.15 2.5
+  fieldOfView 0.9
+}
+
+Background {
+  skyColor [1 1 1]
+}
+
+Stadium {
+  flooring     "asphalt"
+  grandStands  FALSE
+}
+
+# ------------  SUPERVISOR  ------------
+DEF MissionSupervisor Supervisor {
+  controller  "mission_supervisor"
+  controllerArgs "MISSION_ID=683fde702f4f7fa4a9515a48"
+}
+
+# ------------  DRONE  ------------------
+DEF CF1 Crazyflie {
+  translation 0 0.05 0
+  rotation    0 1 0 0
+}
+
+# ------------  GATES  ------------------
+
+DEF Gate_1 Transform {
+  translation 0 1 5
+  rotation    0 1 0 0.0
+  children [
+    Shape {
+      appearance PBRAppearance { baseColor 1 0 0 roughness 1 }
+      geometry   Box { size 0.5 0.5 0.5 }
+    }
+  ]
+}
+
+DEF Gate_2 Transform {
+  translation 0 1 10
+  rotation    0 1 0 0.0
+  children [
+    Shape {
+      appearance PBRAppearance { baseColor 1 0 0 roughness 1 }
+      geometry   Box { size 0.5 0.5 0.5 }
+    }
+  ]
+}

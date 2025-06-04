@@ -1,0 +1,14 @@
+#VRML_SIM R2023b utf8
+
+WorldInfo {
+}
+
+Viewpoint {
+  position 0 1 5
+  orientation 0 0 1 0
+}
+
+EXTERNPROTO "../protos/Stadium.proto"
+
+Stadium {
+} 
